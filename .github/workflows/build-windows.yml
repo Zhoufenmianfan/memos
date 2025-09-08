@@ -42,7 +42,7 @@ jobs:
         uses: bufbuild/buf-setup-action@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          buf_version: 1.26.1
+          version: 1.26.1
 
       - name: Generate Protobuf (if present)
         if: ${{ hashFiles('proto/buf.yaml') != '' || hashFiles('proto/buf.gen.yaml') != '' }}
@@ -83,20 +83,29 @@ jobs:
         run: |
           go build -v -o .\memos-windows-amd64.exe .\server
 
-      - name: Upload artifact
+      - name: Package zip
+        run: |
+          $pkgDir = "package-amd64"
+          if (Test-Path $pkgDir) { Remove-Item -Recurse -Force $pkgDir }
+          New-Item -ItemType Directory -Force -Path $pkgDir | Out-Null
+          Copy-Item -Force "memos-windows-amd64.exe" "$pkgDir/"
+          New-Item -ItemType Directory -Force -Path "$pkgDir/server/dist" | Out-Null
+          Copy-Item -Recurse -Force "server/dist/*" "$pkgDir/server/dist/"
+          Compress-Archive -Path "$pkgDir/*" -DestinationPath "memos-windows-amd64.zip" -Force
+
+      - name: Upload artifact (zip)
         uses: actions/upload-artifact@v4
         with:
           name: memos-windows-amd64
           path: |
-            memos-windows-amd64.exe
-            server/dist/**
+            memos-windows-amd64.zip
 
       - name: Release (on tag)
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            memos-windows-amd64.exe
+            memos-windows-amd64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
