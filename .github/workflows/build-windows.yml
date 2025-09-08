@@ -101,23 +101,30 @@ jobs:
           GOARCH: amd64
         shell: pwsh
         run: |
-          function Build-IfExists($path) {
-            if (Test-Path $path) {
-              Write-Host "Building main at $path"
-              go build -v -o .\memos-windows-amd64.exe $path
-              return $true
-            }
-            return $false
+          # Discover main packages via go list; prefer ones under cmd/*
+          $lines = & go list -f "{{.Dir}}|{{.ImportPath}}|{{.Name}}" ./...
+          if ($LASTEXITCODE -ne 0) { Write-Error "go list failed"; exit 1 }
+          $mains = @()
+          foreach ($ln in $lines) {
+            if ([string]::IsNullOrWhiteSpace($ln)) { continue }
+            $parts = $ln.Split('|')
+            if ($parts.Length -lt 3) { continue }
+            $dir,$imp,$name = $parts[0],$parts[1],$parts[2]
+            if ($name -eq 'main') { $mains += [pscustomobject]@{ Dir=$dir; Import=$imp } }
           }
+          if ($mains.Count -eq 0) { Write-Error "No main packages found"; exit 1 }
 
-          $built = $false
-          # Prefer upstream default
-          if (-not $built) { $built = Build-IfExists .\cmd\memos }
-          # Fallbacks for older trees
-          if (-not $built) { $built = Build-IfExists .\cmd\server }
-          if (-not $built -and (Test-Path .\server\main.go)) { $built = Build-IfExists .\server }
-          if (-not $built -and (Test-Path .\main.go)) { $built = Build-IfExists . }
-          if (-not $built) { Write-Error "Cannot locate main package (tried cmd/memos, cmd/server, server, .)"; exit 1 }
+          # Rank candidates: cmd/memos highest, then any under cmd/, then others
+          $ranked = $mains | Sort-Object -Property @{Expression={
+              if ($_.Import -match '/cmd/memos$') { 0 }
+              elseif ($_.Import -match '/cmd/') { 1 }
+              else { 2 }
+            }}
+
+          $target = $ranked[0].Import
+          Write-Host "Building main import: $target"
+          go build -v -o .\memos-windows-amd64.exe $target
+          if ($LASTEXITCODE -ne 0) { Write-Error "go build failed"; exit 1 }
 
       - name: Verify binary (PE header, size, sha256)
         shell: pwsh
