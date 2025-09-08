@@ -44,10 +44,19 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           version: 1.26.1
 
-      - name: Generate Protobuf (if present)
+      - name: Generate Protobuf (if present and valid)
         if: ${{ hashFiles('proto/buf.yaml') != '' || hashFiles('proto/buf.gen.yaml') != '' }}
+        shell: pwsh
         run: |
-          cd proto
+          $genPath = "proto/buf.gen.yaml"
+          if (Test-Path $genPath) {
+            $content = Get-Content $genPath -Raw
+            if ($content -notmatch '(?m)^version:\s*v1\s*$') {
+              Write-Host "buf.gen.yaml missing 'version: v1', skip buf generate"
+              exit 0
+            }
+          }
+          Set-Location proto
           buf generate
 
       - name: Tool versions
