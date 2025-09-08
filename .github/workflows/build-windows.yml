@@ -1,0 +1,83 @@
+name: Build Memos Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.x"
+          cache: true
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "pnpm"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+
+      - name: Generate Protobuf (if present)
+        if: ${{ hashFiles('proto/buf.yaml') != '' || hashFiles('proto/buf.gen.yaml') != '' }}
+        run: |
+          cd proto
+          buf generate
+
+      - name: Install frontend deps
+        working-directory: web
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: web
+        run: pnpm build
+
+      - name: Prepare server dist
+        run: |
+          if (Test-Path 'server\dist') { Remove-Item -Recurse -Force 'server\dist' }
+          New-Item -ItemType Directory -Force -Path 'server\dist' | Out-Null
+          Copy-Item -Recurse -Force 'web\dist\*' 'server\dist\'
+
+      - name: Build backend (Windows x64)
+        env:
+          CGO_ENABLED: 0
+          GOOS: windows
+          GOARCH: amd64
+        run: |
+          go build -v -o .\memos-windows-amd64.exe .\cmd\memos
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: memos-windows-amd64
+          path: |
+            memos-windows-amd64.exe
+            server/dist/**
+
+      - name: Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            memos-windows-amd64.exe
