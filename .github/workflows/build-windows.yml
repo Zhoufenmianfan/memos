@@ -40,6 +40,9 @@ jobs:
 
       - name: Setup buf
         uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          buf_version: 1.26.1
 
       - name: Generate Protobuf (if present)
         if: ${{ hashFiles('proto/buf.yaml') != '' || hashFiles('proto/buf.gen.yaml') != '' }}
