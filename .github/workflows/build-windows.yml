@@ -7,7 +7,7 @@ on:
       - "v*"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -42,6 +44,13 @@ jobs:
         run: |
           cd proto
           buf generate
+
+      - name: Tool versions
+        run: |
+          go version
+          node -v
+          pnpm -v
+          if (Get-Command buf -ErrorAction SilentlyContinue) { buf --version } else { echo "buf not installed or not in PATH" }
 
       - name: Verify pnpm
         run: pnpm --version
@@ -83,5 +92,7 @@ jobs:
         with:
           files: |
             memos-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
