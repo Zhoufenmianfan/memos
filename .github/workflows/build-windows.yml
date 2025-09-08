@@ -29,11 +29,6 @@ jobs:
           node-version: "18"
           cache: "pnpm"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8
-
       - name: Setup buf
         uses: bufbuild/buf-setup-action@v1
 
@@ -43,10 +38,14 @@ jobs:
           cd proto
           buf generate
 
+      - name: Enable Corepack and activate pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@8.15.4 --activate
+
       - name: Install frontend deps
         working-directory: web
         run: |
-          corepack enable
           pnpm install --frozen-lockfile
 
       - name: Build frontend
@@ -81,3 +80,5 @@ jobs:
         with:
           files: |
             memos-windows-amd64.exe
+
+
