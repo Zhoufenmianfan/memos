@@ -122,8 +122,8 @@ jobs:
             }}
 
           $target = $ranked[0].Import
-          Write-Host "Building main import: $target"
-          go build -v -o .\memos-windows-amd64.exe $target
+          Write-Host "Building main import: $target (with release tag to embed frontend)"
+          go build -v -tags release -o .\memos-windows-amd64.exe $target
           if ($LASTEXITCODE -ne 0) { Write-Error "go build failed"; exit 1 }
 
       - name: Verify binary (PE header, size, sha256)
