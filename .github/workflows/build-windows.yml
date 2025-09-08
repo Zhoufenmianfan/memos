@@ -81,7 +81,7 @@ jobs:
           GOOS: windows
           GOARCH: amd64
         run: |
-          go build -v -o .\memos-windows-amd64.exe .\cmd\memos
+          go build -v -o .\memos-windows-amd64.exe .\server
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
