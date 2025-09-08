@@ -93,6 +93,14 @@ jobs:
           if (Test-Path 'server\dist') { Remove-Item -Recurse -Force 'server\dist' }
           New-Item -ItemType Directory -Force -Path 'server\dist' | Out-Null
           Copy-Item -Recurse -Force 'web\dist\*' 'server\dist\'
+          # Also copy to bin/memos/ui/dist for newer go:embed paths
+          if (Test-Path 'bin\memos\ui\dist') { Remove-Item -Recurse -Force 'bin\memos\ui\dist' }
+          New-Item -ItemType Directory -Force -Path 'bin\memos\ui\dist' | Out-Null
+          Copy-Item -Recurse -Force 'web\dist\*' 'bin\memos\ui\dist\'
+          # Also prepare root-level dist as a fallback
+          if (Test-Path 'dist') { Remove-Item -Recurse -Force 'dist' }
+          New-Item -ItemType Directory -Force -Path 'dist' | Out-Null
+          Copy-Item -Recurse -Force 'web\dist\*' 'dist\'
 
       - name: Build backend (Windows x64)
         env:
