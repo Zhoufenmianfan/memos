@@ -99,8 +99,25 @@ jobs:
           CGO_ENABLED: 0
           GOOS: windows
           GOARCH: amd64
+        shell: pwsh
         run: |
-          go build -v -o .\memos-windows-amd64.exe .\server
+          function Build-IfExists($path) {
+            if (Test-Path $path) {
+              Write-Host "Building main at $path"
+              go build -v -o .\memos-windows-amd64.exe $path
+              return $true
+            }
+            return $false
+          }
+
+          $built = $false
+          # Prefer upstream default
+          if (-not $built) { $built = Build-IfExists .\cmd\memos }
+          # Fallbacks for older trees
+          if (-not $built) { $built = Build-IfExists .\cmd\server }
+          if (-not $built -and (Test-Path .\server\main.go)) { $built = Build-IfExists .\server }
+          if (-not $built -and (Test-Path .\main.go)) { $built = Build-IfExists . }
+          if (-not $built) { Write-Error "Cannot locate main package (tried cmd/memos, cmd/server, server, .)"; exit 1 }
 
       - name: Verify binary (PE header, size, sha256)
         shell: pwsh
