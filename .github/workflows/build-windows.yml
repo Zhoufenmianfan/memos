@@ -40,7 +40,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
           check-latest: true
 
       - name: Setup pnpm
@@ -102,6 +102,22 @@ jobs:
         run: |
           go build -v -o .\memos-windows-amd64.exe .\server
 
+      - name: Verify binary (PE header, size, sha256)
+        shell: pwsh
+        run: |
+          $file = "memos-windows-amd64.exe"
+          if (!(Test-Path $file)) { Write-Error "Binary not found: $file"; exit 1 }
+          $len = (Get-Item $file).Length
+          $fs = [System.IO.File]::OpenRead($file)
+          $b1 = $fs.ReadByte(); $b2 = $fs.ReadByte(); $fs.Close()
+          $sig = [string]::Format("{0:X2} {1:X2}", $b1, $b2)
+          Write-Host "Binary size: $len bytes"
+          Write-Host "PE signature: $sig (expect 4D 5A)"
+          if ($sig -ne "4D 5A") { Write-Error "Invalid PE signature: $sig"; exit 1 }
+          $sha = (Get-FileHash $file -Algorithm SHA256).Hash
+          Write-Host "SHA256: $sha"
+          "memos-windows-amd64.exe  SHA256  $sha  ($len bytes)" | Out-File -FilePath CHECKSUMS.txt -Encoding utf8 -Append
+
       - name: Package zip
         id: package
         run: |
@@ -111,6 +127,7 @@ jobs:
           Copy-Item -Force "memos-windows-amd64.exe" "$pkgDir/"
           New-Item -ItemType Directory -Force -Path "$pkgDir/server/dist" | Out-Null
           Copy-Item -Recurse -Force "server/dist/*" "$pkgDir/server/dist/"
+          if (Test-Path CHECKSUMS.txt) { Copy-Item -Force CHECKSUMS.txt "$pkgDir/" }
           $zip = "memos-windows-amd64.zip"
           if ($env:GITHUB_REF -like 'refs/tags/*') {
             $zip = "memos-windows-amd64-$($env:GITHUB_REF_NAME).zip"
