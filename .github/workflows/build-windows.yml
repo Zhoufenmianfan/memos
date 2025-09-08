@@ -27,7 +27,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "pnpm"
+          check-latest: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
 
       - name: Setup buf
         uses: bufbuild/buf-setup-action@v1
@@ -38,10 +43,8 @@ jobs:
           cd proto
           buf generate
 
-      - name: Enable Corepack and activate pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@8.15.4 --activate
+      - name: Verify pnpm
+        run: pnpm --version
 
       - name: Install frontend deps
         working-directory: web
